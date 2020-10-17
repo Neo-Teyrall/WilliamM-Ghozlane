@@ -1,4 +1,5 @@
 
+
 def read_fastq(fichier : str):
     with open(fichier) as filin:
         for line in enumerate(filin):
@@ -19,6 +20,8 @@ def build_kmer_dict(fichier : str, k : int):
             else :
                 out[j] += 1
     return out
+
+
 
 if __name__ == "__main__" :
     k_dict = build_kmer_dict("../data/eva71_plus_perfect.fq", k = 10)
