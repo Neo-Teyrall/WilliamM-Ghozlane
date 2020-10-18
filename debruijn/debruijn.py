@@ -394,6 +394,38 @@ def get_buble(path_1, path_2):
         return None, None
     return path_1[pos_1],path_1[pos_2]
 
+
+
+def find_sub_buble(graph, node_in , node_out,path_1, path_2):
+    print("activate")
+    cond = True
+    print("out", node_out)
+
+    for i in graph.predecessors(node_out):
+        if i in path_1 or i in path_2 : 
+            print(i , list(nx.all_simple_paths(graph, node_in, i)))
+            if len(list(nx.all_simple_paths(graph, node_in, i))) != 1 :
+                print("stop")
+                cond = False
+    if cond :
+        print("ok")
+        return(node_in, node_out)
+    else:
+        print("else")
+        node_1 = list(graph.successors(node_in))[0]
+        node_2 = list(graph.predecessors(node_out))[0]
+        paths = list(nx.all_simple_paths(graph,node_in,node_2))
+        if len(paths) == 2:
+            return (node_in, node_2)
+        elif len(paths) > 2:
+            return find_sub_buble(graph,node_in,node_2,paths[0],paths[1])
+        paths = list(nx.all_simple_paths(graph,node_1,node_out))
+        if len(paths) == 2:
+            return (node_1, node_out)
+        elif len(paths) > 2:
+            return find_sub_buble(graph,node_1, node_out, paths[0], paths[1])
+
+
 def simplify_bubbles(graph) :
     """
     Parameters:
@@ -412,25 +444,21 @@ def simplify_bubbles(graph) :
     for i in in_:
         for j in out_:
             while len(list(nx.all_simple_paths(graph,i,j))) > 1:
-                paths= list(nx.all_simple_paths(graph,i,j))
+                paths = list(nx.all_simple_paths(graph,i,j))
                 path_1 = paths[0]
                 path_2 = paths[1]
+                print("#############################")
                 print(path_1)
                 print(path_2)
                 node_1 = path_1[0]
                 node_2 = path_2[-1]
-                while True:
-                    n_1, n_2 = get_buble(path_1[path_1.index(node_1):path_1.index(node_2)+1],
-                                        path_2[path_1.index(node_1):path_1.index(node_2)+1])
-                    if n_1 == -1 or n_2 == -1:
-                        break
-                    if n_1 == node_1 and n_2 == node_2 :
-                        break
-                    node_1 = n_1
-                    node_2 = n_2
-                graph = solve_bubble(graph,node_1,node_2)
+                n_1, n_2 = get_buble(path_1[path_1.index(node_1):path_1.index(node_2)+1],
+                                     path_2[path_1.index(node_1):path_1.index(node_2)+1])
+                # print((n_1,n_2))
+                # #n_1,n_2 = find_sub_buble(graph, n_1, n_2)
+                # n_1, n_2 = find_sub_buble(graph, n_1, n_2,path_1,path_2)
+                graph = solve_bubble(graph, n_1,n_2)
     return graph
-
 
 def solve_entry_tips(graph ,entre) :
     """
@@ -445,35 +473,55 @@ def solve_entry_tips(graph ,entre) :
     graph : nx.DiGraph
     -> graphe nettoyé des neoud d'entre
     """
-    print("ENTRE :",entre)
-    e_1 = entre[0]
-    e1s =[e_1]
-    while len(list(graph.successors(e_1))) ==1 :
-        e_1 = list(graph.successors(e_1))[0]
-        e1s.append(e_1)
-    e_2 = entre[1]
-    e2s =[e_2]
-    while len(list(graph.successors(e_2))) ==1 :
-        e_2 = list(graph.successors(e_2))[0]
-        e2s.append(e_2)
-    print("Entre1", e1s,"\nENTRE2",e2s)
-    in_ = False
-    for i in e1s :
-        print(i)
-        if i in e2s:
-            in_ = True
-            path_1 = e1s[:e1s.index(i)+1]
-            path_2 = e2s[:e2s.index(i)+1]
-            break
-    if not in_:
-        path_1 = e1s
-        path_2 = e2s
-    w_1 = path_average_weight(graph,path_1)
-    w_2 = path_average_weight(graph,path_2)
 
-    #print(A_W,B_W)
-    graph = select_best_path(graph,[path_1,path_2],[len(path_1),len(path_2)],[w_1,w_2],True,False)
+    while len(get_starting_nodes(graph)) > 1:
+        starts = get_starting_nodes(graph)
+        start = starts[0]
+        node = start
+        while True:
+            if len(list(graph.predecessors(node))) > 1:
+                break
+            node = list(graph.successors(node))[0]
+        n_1 = list(graph.predecessors(node))[0]
+        n_2 = list(graph.predecessors(node))[1]
+        explor_1 = True
+        explor_2 = True
+        to_explore= n_1
+        join = node
+        while True :
+            if not explor_1 and not  explor_2:
+                break
+            if explor_1:
+                pred = list(graph.predecessors(n_1))
+                if len(pred) ==1 :
+                    n_1 = pred[0]
+                elif len(pred) == 0 :
+                    explor_1 = False
+                else:
+                    node = n_1
+                    n_1 = pred[0]
+                    n_2 = pred[1]
+            elif explor_2 :
+                pred = list(graph.predecessors(n_2))
+                if len(pred) == 1:
+                    n_2 = pred[0]
+                elif len(pred) == 0 :
+                    explor_2 = False
+                else :
+                    node = n_2
+                    n_1 = pred[0]
+                    explor_1 = True
+                    n_2 = pred[1]
+        path_1 = list(nx.all_simple_paths(graph,n_1,join))[0]
+        path_2 = list(nx.all_simple_paths(graph,n_2,join))[0]
+        w_1 = path_average_weight(graph,path_1)
+        w_2 = path_average_weight(graph,path_2)
+        graph = select_best_path(graph, [path_1, path_2],
+                                 [len(path_1),len(path_2)],
+                                 [w_1, w_2],True,False)
+
     return graph
+
 
 def solve_out_tips(graph, out) :
     """
@@ -488,36 +536,55 @@ def solve_out_tips(graph, out) :
     graph : nx.DiGraph
     -> graphe nettoyé des neoud de sortie
     """
-    print("OUT", out)
-    o_1 = out[0]
-    o1s = [o_1]
-    while len(list(graph.predecessors(o_1)))==1 :
-        o_1 = list(graph.predecessors(o_1))[0]
-        o1s.append(o_1)
-    o_2 = out[1]
-    o2s = [o_2]
-    while len(list(graph.predecessors(o_2)))==1:
-        o_2 = list(graph.predecessors(o_2))[0]
-        o2s.append(o_2)
-    print("DIFF",o1s, o2s)
-    path_1 = []
-    path_2 = []
 
-    for i in o1s :
-        print(i)
-        if i in o2s:
-            path_1 = o1s[:o1s.index(i)+1]
-            path_2 = o2s[:o2s.index(i)+1]
-            path_1 = path_1[::-1]
-            path_2 = path_2[::-1]
-            break
-
-    if path_1 == [] and path_2 == []:
-        return graph
-    w_1 = path_average_weight(graph,path_1)
-    w_2 = path_average_weight(graph,path_2)
-    graph = select_best_path(graph,[path_1,path_2],[len(path_1),len(path_2)],[w_1,w_2],False,True)
+    while len(get_sink_nodes(graph)) > 1:
+        ends = get_sink_nodes(graph)
+        end = ends[0]
+        node = end
+        while True:
+            if len(list(graph.successors(node))) > 1:
+                break
+            node = list(graph.predecessors(node))[0]
+        n_1 = list(graph.successors(node))[0]
+        n_2 = list(graph.successors(node))[1]
+        explor_1 = True
+        explor_2 = True
+        to_explore= n_1
+        join = node
+        while True :
+            if not explor_1 and not  explor_2:
+                break
+            if explor_1:
+                pred = list(graph.successors(n_1))
+                if len(pred) ==1 :
+                    n_1 = pred[0]
+                elif len(pred) == 0 :
+                    explor_1 = False
+                else:
+                    node = n_1
+                    n_1 = pred[0]
+                    n_2 = pred[1]
+            elif explor_2 :
+                pred = list(graph.successors(n_2))
+                if len(pred) == 1:
+                    n_2 = pred[0]
+                elif len(pred) == 0 :
+                    explor_2 = False
+                else :
+                    node = n_2
+                    n_1 = pred[0]
+                    explor_1 = True
+                    n_2 = pred[1]
+        path_1 = list(nx.all_simple_paths(graph,join,n_1,))[0]
+        path_2 = list(nx.all_simple_paths(graph,join,n_2))[0]
+        w_1 = path_average_weight(graph,path_1)
+        w_2 = path_average_weight(graph,path_2)
+        graph = select_best_path(graph, [path_1, path_2],
+                                 [len(path_1),len(path_2)],
+                                 [w_1, w_2],False,True)
+    
     return graph
+
 
 def main():
     """
@@ -548,3 +615,16 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+    graph_1 = nx.DiGraph()
+    graph_1.add_weighted_edges_from([(3, 2, 10), (2, 4, 15), (4, 5, 15),
+                                     (2, 10,10), (10, 5,10), (2, 8, 3),
+                                     (8, 9, 3), (9, 5, 3), (5, 6, 10),
+                                     (5, 7, 10)])
+    graph_1 = simplify_bubbles(graph_1)
+
+    print( (2,8) not in graph_1.edges())
+    print( (8,9) not in graph_1.edges())
+    print( (9,5) not in graph_1.edges())
+    print( (2,10) not in graph_1.edges())
+    print( (10, 5) not in graph_1.edges())

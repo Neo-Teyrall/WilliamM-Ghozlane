@@ -1,5 +1,6 @@
 
 
+
 def read_fastq(fichier : str):
     with open(fichier) as filin:
         for line in enumerate(filin):
